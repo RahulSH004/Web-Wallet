@@ -40,4 +40,4 @@ const generatekeys = (walletType: walletType): Walletdata => {
   };
 }
 
-export  {generatekeys, type Walletdata, walletType};
+export  {generatekeys, type Walletdata};
