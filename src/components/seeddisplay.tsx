@@ -28,16 +28,16 @@ const SeedPhraseDisplay: React.FC<SeedPhraseDisplayProps> = ({ mnemonic, isVisib
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+    <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
           Your Secret Phrase
         </h1>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onToggle}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-800 p-2"
         >
           <motion.svg 
             animate={{ rotate: isVisible ? 180 : 0 }}
@@ -59,20 +59,20 @@ const SeedPhraseDisplay: React.FC<SeedPhraseDisplayProps> = ({ mnemonic, isVisib
             initial="hidden"
             animate="visible"
             exit="hidden"
-            className="bg-gray-50 p-6 rounded-lg border overflow-hidden"
+            className="bg-gray-50 p-3 sm:p-6 rounded-lg border overflow-hidden"
           >
             <motion.div 
               variants={containerVariants}
-              className="grid grid-cols-4 gap-3"
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3"
             >
               {words.map((word, index) => (
                 <motion.div
                   key={index}
                   variants={itemVariants}
                   whileHover={{ scale: 1.02 }}
-                  className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm"
+                  className="bg-white p-2 sm:p-3 rounded-lg border border-gray-200 shadow-sm min-w-0"
                 >
-                  <span className="text-sm font-medium text-gray-700 block text-center">
+                  <span className="text-xs sm:text-sm font-medium text-gray-700 block text-center break-words">
                     {word}
                   </span>
                 </motion.div>
