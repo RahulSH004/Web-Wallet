@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import ClearwalletsDialog from "./clearwallet";
 import {
@@ -16,6 +16,11 @@ import WalletSelection from "./walletsection";
 import SeedPhraseDisplay from "./seeddisplay";
 import { toast } from "sonner";
 
+// Local storage keys
+const STORAGE_KEYS = {
+  WALLET_DATA: 'phase_wallet_data',
+  SELECTED_WALLET_TYPE: 'phase_selected_wallet_type'
+};
 
 const Wallet = () => {
   const [walletData, setWalletData] = useState<Walletdata[]>([]);
@@ -24,6 +29,60 @@ const Wallet = () => {
   const [showPrivateKey, setShowPrivateKey] = useState<{
     [key: number]: boolean;
   }>({});
+
+  // Save wallet data to localStorage whenever it changes
+  useEffect(() => {
+    // Only save if there's actual wallet data
+    if (walletData.length > 0) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.WALLET_DATA, JSON.stringify(walletData));
+      } catch (error) {
+        console.error('Error saving wallet data to localStorage:', error);
+        toast.error("Failed to save wallet data", {
+          description: "Your wallets may not persist",
+        });
+      }
+    }
+  }, [walletData]);
+
+  // Load data from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedWalletData = localStorage.getItem(STORAGE_KEYS.WALLET_DATA);
+      const savedWalletType = localStorage.getItem(STORAGE_KEYS.SELECTED_WALLET_TYPE);
+
+      if (savedWalletData) {
+        const parsedWalletData = JSON.parse(savedWalletData);
+        // Only set if it's a valid array with data
+        if (Array.isArray(parsedWalletData) && parsedWalletData.length > 0) {
+          setWalletData(parsedWalletData);
+        }
+      }
+
+      if (savedWalletType) {
+        setSelectedWallet(savedWalletType as walletType);
+      }
+    } catch (error) {
+      console.error('Error loading data from localStorage:', error);
+      // Clear corrupted data
+      localStorage.removeItem(STORAGE_KEYS.WALLET_DATA);
+      localStorage.removeItem(STORAGE_KEYS.SELECTED_WALLET_TYPE);
+      toast.error("Failed to load saved wallets", {
+        description: "Starting with a fresh session",
+      });
+    }
+  }, []);
+
+  // Save selected wallet type to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedWalletType) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.SELECTED_WALLET_TYPE, selectedWalletType);
+      } catch (error) {
+        console.error('Error saving wallet type to localStorage:', error);
+      }
+    }
+  }, [selectedWalletType]);
 
   const handleWalletTypeSelect = (type: walletType) => {
     setSelectedWallet(type);
@@ -34,13 +93,14 @@ const Wallet = () => {
 
   const generateWallet = () => {
     if (selectedWalletType) {
-      try{
+      try {
         const newwallet = generatekeys(selectedWalletType);
         setWalletData((prev) => [...prev, newwallet]);
-        toast.success("Wallet Created Successfully",{
-          description: `New ${selectedWalletType} wallet has been generated`,
+        toast.success("Wallet Created Successfully", {
+          description: `New ${selectedWalletType} wallet has been generated and saved`,
         });
-      }catch{
+      } catch (error) {
+        console.error('Error generating wallet:', error);
         toast.error("Error generating wallet", {
           description: "Please try again or check your inputs.",
         });
@@ -52,6 +112,15 @@ const Wallet = () => {
     const walletCount = walletData.length;
     setWalletData([]);
     setSelectedWallet(null);
+    
+    // Clear localStorage completely
+    try {
+      localStorage.removeItem(STORAGE_KEYS.WALLET_DATA);
+      localStorage.removeItem(STORAGE_KEYS.SELECTED_WALLET_TYPE);
+    } catch (error) {
+      console.error('Error clearing localStorage:', error);
+    }
+
     toast.success("All wallets cleared!", {
       description: `${walletCount} wallet(s) have been permanently deleted`,
     });
@@ -60,7 +129,7 @@ const Wallet = () => {
   const deleteWallet = (index: number) => {
     setWalletData((prev) => prev.filter((_, i) => i !== index));
     toast.success("Wallet deleted!", {
-      description: `Wallet ${index + 1} has been removed`,
+      description: `Wallet ${index + 1} has been removed and saved`,
     });
   };
 
@@ -69,10 +138,26 @@ const Wallet = () => {
       ...prev,
       [index]: !prev[index],
     }));
+
+    if (!showPrivateKey[index]) {
+      toast.info("Private key revealed", {
+        description: "Keep your private key secure and never share it",
+      });
+    }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string, type: string = "Text") => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${type} copied!`, {
+        description: "Copied to clipboard successfully",
+      });
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      toast.error("Failed to copy", {
+        description: "Please try copying manually",
+      });
+    }
   };
 
   // Show wallet selection screen if no wallet type is selected
@@ -133,8 +218,7 @@ const Wallet = () => {
                   {selectedWalletType} Wallet
                 </h2>
                 <p className="text-gray-600">
-                  {walletData.length}{" "}
-                  wallet(s)
+                  {walletData.length} wallet(s)
                 </p>
               </div>
               <div className="flex gap-3">
@@ -167,12 +251,11 @@ const Wallet = () => {
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base sm:text-lg font-semibold">Wallet {index + 1}</h3>
-                  <button
-                    onClick={() => deleteWallet(index)}
-                    className="p-2 text-gray-400 hover:text-red-500 transition-colors duration-200"
-                  >
-                    <TrashIcon className="w-5 h-5" />
-                  </button>
+                  <ClearwalletsDialog onConfirm={() => deleteWallet(index)}>
+                    <button className="p-2 text-gray-400 hover:text-red-500 transition-colors duration-200">
+                      <TrashIcon className="w-5 h-5" />
+                    </button>
+                  </ClearwalletsDialog>
                 </div>
 
                 <div className="space-y-4">
@@ -188,7 +271,7 @@ const Wallet = () => {
                         </p>
                       </div>
                       <button
-                        onClick={() => copyToClipboard(wallet.publickey)}
+                        onClick={() => copyToClipboard(wallet.publickey, "Public key")}
                         className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200 self-center sm:self-auto"
                       >
                         Copy
@@ -222,7 +305,7 @@ const Wallet = () => {
                         </button>
                         {showPrivateKey[index] && (
                           <button
-                            onClick={() => copyToClipboard(wallet.privatekey)}
+                            onClick={() => copyToClipboard(wallet.privatekey, "Private key")}
                             className="p-2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                           >
                             Copy
